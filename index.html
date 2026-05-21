@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 1.21.4+ Creator Pack</title>
+    <!-- Biblioteka do tworzenia plików ZIP w przeglądarce -->
+    <script src="https://cloudflare.com"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #2c3e50; color: #ecf0f1; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #34495e; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: #2ecc71; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="text"], select { width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: none; }
+        input[type="file"] { margin-top: 5px; }
+        .range-container { display: flex; align-items: center; justify-content: space-between; }
+        .range-val { font-weight: bold; color: #2ecc71; }
+        button { width: 100%; padding: 12px; background-color: #2ecc71; color: white; border: none; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background-color: #27ae60; }
+        .info-box { background-color: #2980b9; padding: 10px; border-radius: 4px; margin-top: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚀 Minecraft 1.21.4+ Custom Pack Generator</h2>
+    
+    <!-- 1. Nazwa i opis paczki -->
+    <div class="form-group">
+        <label for="nazwa">Nazwa paczki zasobów:</label>
+        <input type="text" id="nazwa" value="Custom Items Pack">
+    </div>
+    
+    <div class="form-group">
+        <label for="opis">Opis paczki:</label>
+        <input type="text" id="opis" value="Wygenerowane przez Custom Creator">
+    </div>
+
+    <!-- 2. Wybór przedmiotu bazowego (Vanilla) -->
+    <div class="form-group">
+        <label for="base_item">Wybierz przedmiot bazowy (Vanilla):</label>
+        <select id="base_item">
+            <option value="red_dye">red_dye (Czerwony barwnik)</option>
+            <option value="grey_stained_glass">grey_stained_glass (Szare szkło)</option>
+            <option value="iron_nugget">iron_nugget (Samorodek żelaza)</option>
+            <option value="paper">paper (Papier)</option>
+            <option value="stick">stick (Patyk)</option>
+        </select>
+    </div>
+
+    <!-- 3. Suwak LOD -->
+    <div class="form-group">
+        <div class="range-container">
+            <label for="lod">Regulator odległości 3D -> 2D (Bloki):</label>
+            <span id="lod_val" class="range-val">32</span>
+        </div>
+        <input type="range" id="lod" min="8" max="128" value="32" style="width:100%" oninput="document.getElementById('lod_val').innerText = this.value">
+    </div>
+
+    <!-- 4. Wybór ikony paczki -->
+    <div class="form-group">
+        <label for="pack_icon">Ikona paczki (Opcjonalnie, plik .png):</label>
+        <input type="file" id="pack_icon" accept=".png">
+    </div>
+
+    <!-- 5. Wrzucanie grafik przedmiotów -->
+    <div class="form-group" style="border-top: 1px solid #555; padding-top: 15px;">
+        <label for="custom_items" style="color: #2ecc71;">Wgraj tekstury przedmiotów (.png):</label>
+        <input type="file" id="custom_items" accept=".png" multiple onchange="sprawdzRozmiary(this)">
+    </div>
+
+    <button onclick="generujPaczki()">🚀 GENERUJ I POBIERZ PROJEKT</button>
+
+    <div class="info-box">
+        💡 Rozmiar <b>32x32</b> pikseli dla przedmiotów custom jest jak najbardziej git i zalecany!
+    </div>
+</div>
+
+<script>
+    function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function sprawdzRozmiary(input) {
+        for (let file of input.files) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let img = new Image();
+                img.onload = function() {
+                    if(this.width === 32 && this.height === 32) {
+                        console.log(file.name + ": Format 32x32 wykryty. Jest git!");
+                    }
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    async function generujPaczki() {
+        const filesInput = document.getElementById('custom_items');
+        if (filesInput.files.length === 0) {
+            alert("❌ Najpierw musisz dodać pliki .png w sekcji tekstur przedmiotów!");
+            return;
+        }
+
+        const zip = new JSZip();
+        const nazwaPaczki = document.getElementById('nazwa').value.trim() || "Custom Pack";
+        const opisPaczki = document.getElementById('opis').value.trim() || "Custom Pack Description";
+        const baseItem = document.getElementById('base_item').value;
+        const lodDystans = parseInt(document.getElementById('lod').value);
+        const namespace = "gui";
+        const nazwaBezSpacji = nazwaPaczki.toLowerCase().replace(/ /g, "_");
+
+        let javaCases = [];
+        let geyserDefinitions = [];
+        let bedrockTextureData = {};
+
+        // Obsługa ikony paczki
+        const iconInput = document.getElementById('pack_icon');
+        let iconBlob = null;
+        if (iconInput.files.length > 0) {
+            iconBlob = iconInput.files[0];
+        }
+
+        // Przetwarzanie każdego pliku graficznego przedmiotu
+        for (let file of filesInput.files) {
+            const nazwaCzysta = file.name.replace(".png", "");
+            const stringModelu = `${namespace}:custom/${nazwaCzysta}`;
+
+            // Kopiowanie grafik bezpośrednio do struktur ZIP
+            zip.file(`paczka_java/assets/minecraft/textures/item/${file.name}`, file);
+            zip.file(`paczka_bedrock/textures/items/${file.name}`, file);
+
+            // 1. JAVA: Generowanie pliku pojedynczego modelu
+            const model2dJava = {
+                "parent": "minecraft:item/generated",
+                "textures": { "layer0": `minecraft:item/${nazwaCzysta}` }
+            };
+            zip.file(`paczka_java/assets/minecraft/models/item/${nazwaCzysta}.json`, JSON.stringify(model2dJava, null, 2));
+
+            // Wpis do głównego selektora z uwzględnieniem suwaka LOD
+            javaCases.push({
+                "when": stringModelu,
+                "model": {
+                    "type": "minecraft:range_dispatch",
+                    "property": "minecraft:view_distance",
+                    "entries": [
+                        { "threshold": 0, "model": { "type": "minecraft:model", "model": `minecraft:item/${nazwaCzysta}_3d` } },
+                        { "threshold": lodDystans, "model": { "type": "minecraft:model", "model": `minecraft:item/${nazwaCzysta}` } }
+                    ]
+                }
+            });
+
+            // 2. BEDROCK: Dane pod plik item_texture.json
+            bedrockTextureData[nazwaCzysta] = { "textures": `textures/items/${nazwaCzysta}` };
+
+            // 3. GEYSER: Definicje do mapowania mapowań
+            geyserDefinitions.push({
+                "bedrock_options": { "item_model": stringModelu },
+                "components": { "minecraft:icon": nazwaCzysta },
+                "type": "definition"
+            });
+        }
+
+        // Zapisywanie ikon do paczek
+        if (iconBlob) {
+            zip.file("paczka_java/pack.png", iconBlob);
+            zip.file("paczka_bedrock/pack_icon.png", iconBlob);
+        }
+
+        // JAVA: Zapis items/przedmiot_bazowy.json (Format 1.21.4+)
+        const glownyItemJava = {
+            "model": {
+                "type": "minecraft:select",
+                "property": "minecraft:item_model",
+                "cases": java_cases,
+                "fallback": { "type": "minecraft:model", "model": `minecraft:item/${baseItem}` }
+            }
+        };
+        zip.file(`paczka_java/assets/minecraft/items/${baseItem}.json`, JSON.stringify(glownyItemJava, null, 2));
+        zip.file("paczka_java/pack.mcmeta", JSON.stringify({ "pack": { "pack_format": 46, "description": opisPaczki } }, null, 2));
+
+        // BEDROCK: Zapis pliku item_texture.json oraz manifest.json z UUID
+        zip.file("paczka_bedrock/textures/item_texture.json", JSON.stringify({
+            "resource_pack_name": nazwaBezSpacji, "texture_name": "atlas.items", "texture_data": bedrockTextureData
+        }, null, 2));
+
+        const manifestJson = {
+            "format_version": 2,
+            "header": { "description": opisPaczki, "name": nazwaPaczki, "uuid": generateUUID(), "version": [1, 0, 0], "min_engine_version": [1, 21, 40] },
+            "modules": [{ "description": opisPaczki, "type": "resources", "uuid": generateUUID(), "version": [1, 0, 0] }]
+        };
+        zip.file("paczka_bedrock/manifest.json", JSON.stringify(manifestJson, null, 2));
+
+        // GEYSER: Zapis pliku geyser_mappings.json
+        const geyserMappings = {
+            "format_version": 2,
+            "items": {
+                [`minecraft:${baseItem}`]: [{
+                    "bedrock_identifier": `${namespace}:${baseItem}`,
+                    "model": "minecraft:geometry.item_2d",
+                    "definitions": geyserDefinitions
+                }]
+            }
+        };
+        zip.file("geyser/geyser_mappings.json", JSON.stringify(geyserMappings, null, 2));
+
+        // Generowanie i automatyczne pobieranie spakowanego pliku na komputer użytkownika
+        zip.generateAsync({ type: "blob" }).then(function(content) {
+            const element = document.createElement('a');
+            element.href = URL.createObjectURL(content);
+            element.download = `${nazwaBezSpacji}_projekty.zip`;
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        });
+    }
+</script>
+
+</body>
+</html>
