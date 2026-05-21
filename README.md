@@ -18,6 +18,8 @@ Generator zapewnia wsparcie dla następujących środowisk:
 * Forge
 * Arclight
 * Magma
+* Neoforge
+* Quilt
 
 ## Licencja / License
 
