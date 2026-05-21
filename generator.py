@@ -100,7 +100,7 @@ class GeneratorApp:
         przedmiot_bazowy = self.item_bazowy.get()
         dystans_lod = self.suwak_lod.get()
         namespace = "gui"
-        nazwa_bez_spacji = nazwa_paczki.toLowerCase().replace(" ", "_") if hasattr(str, 'toLowerCase') else nazwa_paczki.lower().replace(" ", "_")
+        nazwa_bez_spacji = nazwa_paczki.lower().replace(" ", "_")
 
         # Ścieżki docelowe
         WYJSCIE_JAVA_MODELE = os.path.join("wyjscie", "paczka_java", "assets", "minecraft", "models", "item")
