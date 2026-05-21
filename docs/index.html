@@ -67,7 +67,7 @@
     <!-- 5. Wrzucanie grafik przedmiotów -->
     <div class="form-group" style="border-top: 1px solid #555; padding-top: 15px;">
         <label for="custom_items" style="color: #2ecc71;">Wgraj tekstury przedmiotów (.png):</label>
-        <input type="file" id="custom_items" accept=".png" multiple onchange="sprawdzRozmiary(this)">
+        <input type="file" id="custom_items" accept=".png" multiple>
     </div>
 
     <button onclick="generujPaczki()">🚀 GENERUJ I POBIERZ PROJEKT</button>
@@ -83,22 +83,6 @@
             var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
-    }
-
-    function sprawdzRozmiary(input) {
-        for (let file of input.files) {
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                let img = new Image();
-                img.onload = function() {
-                    if(this.width === 32 && this.height === 32) {
-                        console.log(file.name + ": Format 32x32 wykryty. Jest git!");
-                    }
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
     }
 
     async function generujPaczki() {
@@ -122,9 +106,10 @@
 
         // Obsługa ikony paczki
         const iconInput = document.getElementById('pack_icon');
-        let iconBlob = null;
         if (iconInput.files.length > 0) {
-            iconBlob = iconInput.files[0];
+            const iconFile = iconInput.files[0];
+            zip.file("paczka_java/pack.png", iconFile);
+            zip.file("paczka_bedrock/pack_icon.png", iconFile);
         }
 
         // Przetwarzanie każdego pliku graficznego przedmiotu
@@ -159,7 +144,7 @@
             // 2. BEDROCK: Dane pod plik item_texture.json
             bedrockTextureData[nazwaCzysta] = { "textures": `textures/items/${nazwaCzysta}` };
 
-            // 3. GEYSER: Definicje do mapowania mapowań
+            // 3. GEYSER: Definicje do mapowania
             geyserDefinitions.push({
                 "bedrock_options": { "item_model": stringModelu },
                 "components": { "minecraft:icon": nazwaCzysta },
@@ -167,25 +152,19 @@
             });
         }
 
-        // Zapisywanie ikon do paczek
-        if (iconBlob) {
-            zip.file("paczka_java/pack.png", iconBlob);
-            zip.file("paczka_bedrock/pack_icon.png", iconBlob);
-        }
-
         // JAVA: Zapis items/przedmiot_bazowy.json (Format 1.21.4+)
         const glownyItemJava = {
             "model": {
                 "type": "minecraft:select",
                 "property": "minecraft:item_model",
-                "cases": java_cases,
+                "cases": javaCases,
                 "fallback": { "type": "minecraft:model", "model": `minecraft:item/${baseItem}` }
             }
         };
         zip.file(`paczka_java/assets/minecraft/items/${baseItem}.json`, JSON.stringify(glownyItemJava, null, 2));
         zip.file("paczka_java/pack.mcmeta", JSON.stringify({ "pack": { "pack_format": 46, "description": opisPaczki } }, null, 2));
 
-        // BEDROCK: Zapis pliku item_texture.json oraz manifest.json z UUID
+        // BEDROCK: Zapis pliku item_texture.json oraz manifest.json z prawidłową wersją [1, 0, 0]
         zip.file("paczka_bedrock/textures/item_texture.json", JSON.stringify({
             "resource_pack_name": nazwaBezSpacji, "texture_name": "atlas.items", "texture_data": bedrockTextureData
         }, null, 2));
