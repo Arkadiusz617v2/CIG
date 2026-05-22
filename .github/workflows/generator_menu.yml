@@ -1,0 +1,53 @@
+name: 🚀 Uruchom Generator (Menu)
+
+on:
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: '1. Podaj NAMESPACE dla modeli'
+        required: true
+        default: 'gui'
+      nazwa_paczki:
+        description: '2. Podaj NAZWĘ dla paczki zasobów'
+        required: true
+        default: 'Custom Items Pack'
+      opis_paczki:
+        description: '3. Podaj OPIS dla paczki'
+        required: true
+        default: 'Wygenerowane przez GitHub'
+      przedmiot_bazowy:
+        description: '4. Wybierz przedmiot bazowy z Javy'
+        required: true
+        default: 'red_dye'
+        type: choice
+        options:
+          - red_dye
+          - grey_stained_glass
+          - iron_nugget
+          - paper
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobieranie kodu z repozytorium
+        uses: actions/checkout@v4
+
+      - name: Instalacja Pythona
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Uruchomienie skryptu Pythona z danymi z menu GitHuba
+        run: |
+          python generator.py \
+            --namespace "${{ github.event.inputs.namespace }}" \
+            --nazwa "${{ github.event.inputs.nazwa_paczki }}" \
+            --opis "${{ github.event.inputs.opis_paczki }}" \
+            --baza "${{ github.event.inputs.przedmiot_bazowy }}"
+
+      - name: Zapisanie gotowych paczek jako plik do pobrania
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.nazwa_paczki }}
+          path: wyjscie/
