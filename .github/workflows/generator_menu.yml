@@ -1,22 +1,25 @@
-name: xX Menu Xx
+name: 🚀 Uruchom Generator (Menu)
 
 on:
   workflow_dispatch:
     inputs:
+      gdrive_url:
+        description: '1. Link do folderu Google Drive z Twoimi plikami .png (Folder musi być publiczny dla każdego z linkiem!)'
+        required: true
       namespace:
-        description: '1. Podaj NAMESPACE dla modeli (np. gui, custom)'
+        description: '2. Podaj NAMESPACE dla modeli (np. gui, custom)'
         required: true
         default: 'gui'
       nazwa_paczki:
-        description: '2. Podaj NAZWĘ dla paczki zasobów'
+        description: '3. Podaj NAZWĘ dla paczki zasobów'
         required: true
         default: 'Custom Items Pack'
       opis_paczki:
-        description: '3. Podaj OPIS dla paczki'
+        description: '4. Podaj OPIS dla paczki'
         required: true
-        default: 'Wygenerowane przez GitHub'
+        default: 'Wygenerowane przez GitHub Actions'
       przedmiot_bazowy:
-        description: '4. Wybierz przedmiot bazowy z Javy (Vanilla)'
+        description: '5. Wybierz przedmiot bazowy z Javy (Vanilla)'
         required: true
         default: 'red_dye'
         type: choice
@@ -38,7 +41,15 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Uruchomienie skryptu Pythona z danymi z menu GitHuba
+      - name: Instalacja narzędzia do pobierania z Google Drive
+        run: pip install gdown
+
+      - name: Automatyczne pobieranie plików .png użytkownika z Google Drive
+        run: |
+          mkdir -p obrazy_png
+          gdown --folder "${{ github.event.inputs.gdrive_url }}" -O obrazy_png/
+
+      - name: Uruchomienie skryptu Pythona z poprawnymi flagami angielskimi
         run: |
           python generator.py \
             --namespace "${{ github.event.inputs.namespace }}" \
