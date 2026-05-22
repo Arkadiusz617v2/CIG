@@ -8,20 +8,18 @@ from processor_2d import Item2DProcessor
 from processor_3d import Item3DProcessor
 
 def main():
-    # 🎛️ REJESTRACJA ARGUMENTÓW STARTOWYCH (Dokładnie jak w java2bedrock)
     parser = argparse.ArgumentParser(description="Minecraft 1.21.4+ Modular Custom Pack Generator")
-    parser.add_argument("-n", "--namespace", default="gui", help="Prefix/Namespace dla modeli (np. gui, custom)")
-    parser.add_argument("-b", "--base", default="red_dye", help="ID przedmiotu bazowego z Javy (np. red_dye, paper)")
-    parser.add_argument("-p", "--packname", default="Custom Items Pack", help="Nazwa tworzonej paczki zasobów")
-    parser.add_argument("-o", "--description", default="Zbudowane za pomoca generatora", help="Opis paczki w pliku manifestu")
-    parser.add_argument("-t", "--type", default="1", choices=["1", "2"], help="Typ generowania dla calej sesji (1 = Płaski 2D, 2 = Przestrzenny 3D)")
-    parser.add_argument("-l", "--lod", type=int, default=32, help="Dystans optymalizacji LOD dla przedmiotów 3D")
+    parser.add_argument("--namespace", default="gui")
+    parser.add_argument("--base", default="red_dye")
+    parser.add_argument("--packname", default="Custom Items Pack")
+    parser.add_argument("--description", default="Wygenerowane przez GitHub")
+    parser.add_argument("--type", default="1")
+    parser.add_argument("--lod", type=int, default=32)
     args = parser.parse_args()
 
     proc_2d = Item2DProcessor()
     proc_3d = Item3DProcessor()
     
-    # Foldery wejściowe i wyjściowe są stałym standardem programu
     folder_source = "obrazy_png"
     folder_output = "wyjscie"
     
@@ -32,16 +30,14 @@ def main():
     bedrock_root = os.path.join(folder_output, "paczka_bedrock")
     geyser_root = os.path.join(folder_output, "geyser")
 
-    # Automatyczne przygotowanie środowiska
     os.makedirs(folder_source, exist_ok=True)
     
     pliki_png = [f for f in os.listdir(folder_source) if f.endswith('.png')]
     if not pliki_png:
         print(f"❌ Blad: Folder '{folder_source}' jest pusty!")
-        print("👉 Wrzuc tam pliki tekstur .png swoich przedmiotów i uruchom komende ponownie.")
+        print("👉 Wrzuc pliki tekstur .png do swojego folderu i uruchom sesje ponownie.")
         return
 
-    # Czyszczenie i tworzenie świeżych folderów wyjściowych
     shutil.rmtree(folder_output, ignore_errors=True)
     os.makedirs(java_modele, exist_ok=True)
     os.makedirs(java_items, exist_ok=True)
@@ -55,54 +51,51 @@ def main():
     komendy_do_wyswietlenia = []
     ostatni_geyser_json = {}
 
-    print(f"📂 Rozpoczeto masowe przetwarzanie dla {len(pliki_png)} tekstur...\n")
+    print(f"📂 Rozpoczeto zbiorcza sesje dla {len(pliki_png)} plików PNG.\n")
 
     for plik in pliki_png:
         nazwa_czysta = os.path.splitext(plik)[0]
         w, h = pobierz_wymiary_png(os.path.join(folder_source, plik))
         
-        # Informacja o formacie 32x32
-        if w == 32 and h == 32:
-            print(f"  » {plik}: Wykryto format 32x32 (rozmiar jest jak najbardziej git!)")
+        # 🟩 CAŁKOWICIE POPRAWIONA AKCEPTACJA ROZMIARÓW (Wsparcie dla 16x16, 32x32 i innych)
+        if w is not None and h is not None:
+            print(f"  » {plik}: Wczytano format {w}x{h} - rozmiar jest w 100% git!")
         else:
-            print(f"  » {plik}: Wykryto rozmiar {w}x{h}")
+            print(f"  » {plik}: Wczytano plik graficzny tekstury.")
 
         string_modelu = f"{args.namespace}:custom/{nazwa_czysta}"
 
-        # Bezpieczne kopiowanie binarne plików graficznych
         shutil.copy(os.path.join(folder_source, plik), os.path.join(java_textures, f"{nazwa_czysta}.png"))
         shutil.copy(os.path.join(folder_source, plik), os.path.join(bedrock_textures, f"{nazwa_czysta}.png"))
 
-        # Izolacja trybów w osobnych klasach procesorów (0% konfliktów)
-        if args.type == "2":
+        if args.type == "2": # Tryb 3D z odległością LOD
             case_java_wpis, bedrock_texture_wpis, ostatni_geyser_json = proc_3d.przetworz(
-                nazwa_czysta, string_modelu, args.lod, args.namespace, args.baza, geyser_definitions
+                nazwa_czysta, string_modelu, args.lod, args.namespace, args.base, geyser_definitions
             )
             java_cases.append(case_java_wpis)
             texture_data_bedrock[nazwa_czysta] = bedrock_texture_wpis
-        else:
+        else: # Standardowy tryb 2D dla płaskich ikon
             model_java_json, case_java_wpis, bedrock_texture_wpis, ostatni_geyser_json = proc_2d.przetworz(
-                nazwa_czysta, string_modelu, args.namespace, args.baza, geyser_definitions
+                nazwa_czysta, string_modelu, args.namespace, args.base, geyser_definitions
             )
             java_cases.append(case_java_wpis)
             texture_data_bedrock[nazwa_czysta] = bedrock_texture_wpis
             
-            # Zapis unikalnego pliku modelu Javy dla przedmiotu 2D
             with open(os.path.join(java_modele, f"{nazwa_czysta}.json"), "w", encoding="utf-8") as f:
                 json.dump(model_java_json, f, indent=2)
 
-        # Generowanie komendy give
-        cmd = f'/give @s {args.baza}[item_model="{string_modelu}"]'
+        # 📋 AUTOMATYCZNE GENEROWANIE KOMENDY GIVE (Format 1.21.4+)
+        cmd = f'/give @s {args.base}[item_model="{string_modelu}"]'
         komendy_do_wyswietlenia.append((nazwa_czysta, cmd))
 
-    # ZAPIS ZBIORCZY ARCHIWALNY
+    # ZAPIS ZBIORCZY PLIKÓW KOŃCOWYCH
     glowny_item_java = {
         "model": {
             "type": "minecraft:select", "property": "minecraft:item_model",
-            "cases": java_cases, "fallback": {"type": "minecraft:model", "model": f"minecraft:item/{args.baza}"}
+            "cases": java_cases, "fallback": {"type": "minecraft:model", "model": f"minecraft:item/{args.base}"}
         }
     }
-    with open(os.path.join(java_items, f"{args.baza}.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(java_items, f"{args.base}.json"), "w", encoding="utf-8") as f:
         json.dump(glowny_item_java, f, indent=2)
 
     with open(os.path.join(folder_output, "paczka_java", "pack.mcmeta"), "w", encoding="utf-8") as f:
@@ -125,11 +118,13 @@ def main():
     with open(os.path.join(geyser_root, "geyser_mappings.json"), "w", encoding="utf-8") as f:
         json.dump(ostatni_geyser_json, f, indent=2)
 
+    # 📣 WYŚWIETLENIE KOMEND W KONSOLI GITHUBA
     print("\n====================================================")
-    print("🎉 PACZKI WYGENEROWANE POMYSLNIE W FOLDERZE 'wyjscie'!")
+    print("📋 KOMENDY DO PRZYWOŁANIA PRZEDMIOTÓW (WERSJA 1.21.4+):")
     print("====================================================")
     for nazwa, komenda in komendy_do_wyswietlenia:
-        print(f"🔹 {nazwa}:\n   {komenda}\n")
+        print(f"🔹 Przedmiot: {nazwa}")
+        print(f"   {komenda}\n")
     print("====================================================")
 
 if __name__ == "__main__":
