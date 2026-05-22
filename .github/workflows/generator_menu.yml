@@ -72,15 +72,7 @@ jobs:
             --lod "${{ github.event.inputs.dystans_lod }}"
 
       - name: Zapisanie gotowych paczek w chmurze GitHuba (Artifact)
-        id: artifact-upload
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.nazwa_paczki }}
           path: wyjscie/
-
-      - name: ✨ WYŚWIETLENIE LINKU DO BEZPOŚREDNIEGO POBRANIA NA PC
-        run: |
-          echo "================================================================="
-          echo "📥 POBIERZ SWOJĄ PACZKĘ ZIP BEZPOŚREDNIO NA PC KLIKAJĄC W LINK PONIŻEJ:"
-          echo "👉 ${{ steps.artifact-upload.outputs.artifact-url }} 👈"
-          echo "================================================================="
