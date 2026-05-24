@@ -8,7 +8,6 @@ from java_compilator import JavaCompilator
 from geyser_compilator import GeyserCompilator
 
 def generuj_losowy_hash(dlugosc=12):
-    """Generuje losowy ciąg liter i cyfr (np. 3f63j24bjr27) wspólny dla całej sesji."""
     znaki = "abcdefghijklmnopqrstuvwxyz0123456789"
     return "".join(secrets.choice(znaki) for _ in range(dlugosc))
 
@@ -17,7 +16,6 @@ def main():
     print("   🎛️ MODULARNY KOMPILATOR PACZEK MINECRAFT 1.21.4+ ")
     print("====================================================\n")
 
-    # 🎛️ POPRAWIONA REJESTRACJA ARGUMENTÓW (Idealna synchronizacja z GitHub Actions)
     parser = argparse.ArgumentParser(description="Minecraft 1.21.4+ Modular Custom Pack Generator")
     parser.add_argument("-n", "--namespace", default="gui", help="Prefix/Namespace dla modeli")
     parser.add_argument("-b", "--base", default="red_dye", help="ID przedmiotu bazowego z Javy")
@@ -28,34 +26,33 @@ def main():
     args = parser.parse_args()
 
     folder_source = "obrazy_png"
-    folder_output = "wyjscie"
-    folder_final = "GEN"
+    folder_final = "GEN"  # 🟢 DZIAŁAMY TYLKO NA FOLDERZE GEN
 
     os.makedirs(folder_source, exist_ok=True)
     
     pliki_png = [f for f in os.listdir(folder_source) if f.endswith('.png')]
     if not pliki_png:
         print(f"❌ Blad: Folder lokalny '{folder_source}' jest pusty!")
-        print("👉 Wrzuć pliki .png do folderu w swoim repozytorium przed uruchomieniem.")
         return
 
-    # Generujemy jeden wspólny token (hasz) na całą sesję dla Javy i Bedrocka
     token_zabezpieczajacy = generuj_losowy_hash()
     print(f"🔒 Wygenerowano wspólny klucz ochrony plików: {token_zabezpieczajacy}")
 
-    shutil.rmtree(folder_output, ignore_errors=True)
+    # Resetujemy folder GEN na starcie nowej sesji
+    shutil.rmtree(folder_final, ignore_errors=True)
+    os.makedirs(folder_final, exist_ok=True)
 
-    # 🚀 Uruchomienie kompilatorów z przekazaniem flagi typu przedmiotów (--type)
-    bedrock_runner = BedrockCompilator(folder_output)
+    # 🚀 Uruchomienie kompilatorów bezpośrednio na folderze GEN
+    bedrock_runner = BedrockCompilator(folder_final)
     bedrock_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_png)
 
-    java_runner = JavaCompilator(folder_output)
+    java_runner = JavaCompilator(folder_final)
     java_runner.kompiluj(args.description, token_zabezpieczajacy, folder_source, pliki_png, args.namespace, args.base)
 
-    geyser_runner = GeyserCompilator(folder_output)
+    geyser_runner = GeyserCompilator(folder_final)
     geyser_runner.kompiluj(token_zabezpieczajacy, pliki_png, args.namespace, args.base)
 
-    # 📝 LISTA KOMEND I GENEROWANIE STRUKTURY GUI.YML ZGODNIE Z HASHEM
+    # 📝 LISTA KOMEND I STRUKTURA GUI.YML
     komendy = []
     gui_items_yml = []
     aktualny_slot = 10 
@@ -79,13 +76,13 @@ def main():
         gui_items_yml.append(item_yml_block)
         aktualny_slot += 1
 
-    # Zapisywanie commands.txt
-    with open(os.path.join(folder_output, "commands.txt"), "w", encoding="utf-8") as f:
+    # Zapisywanie commands.txt w GEN
+    with open(os.path.join(folder_final, "commands.txt"), "w", encoding="utf-8") as f:
         f.write("=== WYGENEROWANE KOMENDY DLA TEJ SESJI (Minecraft 1.21.4+) ===\n\n")
         f.write("\n\n".join(komendy))
 
-    # Zapisywanie gui.yml
-    with open(os.path.join(folder_output, "gui.yml"), "w", encoding="utf-8") as f:
+    # Zapisywanie gui.yml w GEN
+    with open(os.path.join(folder_final, "gui.yml"), "w", encoding="utf-8") as f:
         f.write("# ====================================================\n")
         f.write("# 🚀 AUTORSKIE MENU SERWEROWE MINECRAFT 1.21.4+\n")
         f.write("# ====================================================\n\n")
@@ -94,12 +91,7 @@ def main():
         f.write("size: 54\n\n")
         f.write("items:\n")
         f.write("\n".join(gui_items_yml))
-    print("  ✔️ Wygenerowano plik konfiguracyjny gui.yml.")
-
-    # 💥 PRZENOSZENIE DO FOLDERU GEN
-    shutil.rmtree(folder_final, ignore_errors=True)
-    shutil.copytree(folder_output, folder_final)
-    shutil.rmtree(folder_output, ignore_errors=True)
+    print("  ✔️ Wygenerowano plik konfiguracyjny gui.yml w folderze GEN.")
 
     print("\n====================================================")
     print("🎉 KOMPILACJA ZAKOŃCZONA SUKCESEM!")
