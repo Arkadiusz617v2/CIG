@@ -60,8 +60,11 @@ jobs:
             --type "${{ github.event.inputs.typ_przedmiotu }}" \
             --lod "${{ github.event.inputs.dystans_lod }}"
 
-      - name: Zapisanie gotowych paczek oraz gui.yml (Artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.nazwa_paczki }}
-          path: GEN/
+      # 🟢 AUTOMATYCZNY ZAPIS FOLDERU GEN DIRECTLY DO PROJEKTU NA GITHUBIE
+      - name: Automatyczny zapis folderu GEN do projektu (Commit & Push)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          git add GEN/
+          git commit -m "🚀 Wygenerowano nowy pakiet struktur w folderze GEN" || echo "Brak zmian do zapisu"
+          git push
