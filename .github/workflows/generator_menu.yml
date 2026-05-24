@@ -63,7 +63,7 @@ jobs:
 
       - name: Uruchomienie skryptu Pythona z pełnymi flagami wyboru
         run: |
-          python generator.py \
+          python main.py \
             --namespace "${{ github.event.inputs.namespace }}" \
             --packname "${{ github.event.inputs.nazwa_paczki }}" \
             --description "${{ github.event.inputs.opis_paczki }}" \
@@ -71,8 +71,9 @@ jobs:
             --type "${{ github.event.inputs.typ_przedmiotu }}" \
             --lod "${{ github.event.inputs.dystans_lod }}"
 
+      # 💥 POPRAWIONA ŚCIEŻKA: GitHub pobiera teraz gotowy folder GEN (zawierający paczki, komendy i gui.yml)
       - name: Zapisanie gotowych paczek w chmurze GitHuba (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.nazwa_paczki }}
-          path: wyjscie/
+          path: GEN/
