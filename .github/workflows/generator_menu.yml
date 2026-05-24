@@ -38,6 +38,10 @@ on:
         required: true
         default: '32'
 
+# 🔓 ODBLOKOWANIE UPRAWNIEŃ ZAPISU DLA BOTA GITHUBA (Naprawia błąd 403)
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -60,11 +64,14 @@ jobs:
             --type "${{ github.event.inputs.typ_przedmiotu }}" \
             --lod "${{ github.event.inputs.dystans_lod }}"
 
-      # 🟢 AUTOMATYCZNY ZAPIS FOLDERU GEN DIRECTLY DO PROJEKTU NA GITHUBIE
+      # 🟢 AUTOMATYCZNY ZAPIS Z ODŚWIEŻENIEM DYSKU I UPRAWNIENIAMI TOKENU
       - name: Automatyczny zapis folderu GEN do projektu (Commit & Push)
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://github.com"
-          git add GEN/
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Wymuszamy rejestrację folderu GEN, ignorując pamięć podręczną Pythona
+          git add GEN/ || echo "Folder GEN jeszcze nie istnieje lub jest pusty"
+          
           git commit -m "🚀 Wygenerowano nowy pakiet struktur w folderze GEN" || echo "Brak zmian do zapisu"
-          git push
+          git push origin main
