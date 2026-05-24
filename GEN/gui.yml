@@ -1,0 +1,17 @@
+# ====================================================
+# 🚀 AUTORSKIE MENU SERWEROWE MINECRAFT 1.21.4+
+# ====================================================
+
+menu_title: '&8Moje Customowe Przedmioty'
+open_command: custommenu
+size: 54
+
+items:
+  przedmiot_gui:
+    material: RED_DYE
+    slot: 10
+    item_model: 'gui:x5dag7r8jh1i/gui'
+    display_name: '&aCustom Gui'
+    lore:
+      - '&7Wygenerowano automatycznie przez'
+      - '&7Twoj Generator 1.21.4+'

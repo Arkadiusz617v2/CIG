@@ -1,0 +1,30 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Wygenerowane przez GitHub Actions",
+    "name": "Custom Items Pack",
+    "uuid": "e6c1ed44-8cfd-4b4b-ae52-5b431422dbca",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      20,
+      0
+    ]
+  },
+  "modules": [
+    {
+      "description": "Wygenerowane przez GitHub Actions",
+      "type": "resources",
+      "uuid": "df71938b-bec9-4455-89a6-f9bbe79c824e",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ]
+}
