@@ -3,23 +3,20 @@ name: 🚀 Uruchom Generator (Menu)
 on:
   workflow_dispatch:
     inputs:
-      gdrive_url:
-        description: '1. Link do folderu Google Drive z Twoimi plikami .png (Folder musi być publiczny dla każdego z linkiem!)'
-        required: true
       namespace:
-        description: '2. Podaj NAMESPACE dla modeli (np. gui, custom)'
+        description: '1. Podaj NAMESPACE dla modeli (np. gui, custom)'
         required: true
         default: 'gui'
       nazwa_paczki:
-        description: '3. Podaj NAZWĘ dla paczki zasobów'
+        description: '2. Podaj NAZWĘ dla paczki zasobów'
         required: true
         default: 'Custom Items Pack'
       opis_paczki:
-        description: '4. Podaj OPIS dla paczki'
+        description: '3. Podaj OPIS dla paczki'
         required: true
         default: 'Wygenerowane przez GitHub Actions'
       przedmiot_bazowy:
-        description: '5. Wybierz przedmiot bazowy z Javy (Vanilla)'
+        description: '4. Wybierz przedmiot bazowy z Javy (Vanilla)'
         required: true
         default: 'red_dye'
         type: choice
@@ -29,7 +26,7 @@ on:
           - iron_nugget
           - paper
       typ_przedmiotu:
-        description: '6. Wybierz typ przedmiotów w tej sesji'
+        description: '5. Wybierz typ przedmiotów w tej sesji'
         required: true
         default: '1'
         type: choice
@@ -37,7 +34,7 @@ on:
           - '1' # Płaski przedmiot (2D)
           - '2' # Model przestrzenny (3D z LOD)
       dystans_lod:
-        description: '7. Dystans optymalizacji LOD dla trybu 3D (w blokach)'
+        description: '6. Dystans optymalizacji LOD dla trybu 3D (w blokach)'
         required: true
         default: '32'
 
@@ -45,7 +42,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Pobieranie kodu z repozytorium
+      - name: Pobieranie kodu i plików graficznych z repozytorium
         uses: actions/checkout@v4
 
       - name: Instalacja Pythona
@@ -53,15 +50,7 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Instalacja narzędzia do pobierania z Google Drive
-        run: pip install gdown
-
-      - name: Automatyczne pobieranie plików .png użytkownika z Google Drive
-        run: |
-          mkdir -p obrazy_png
-          gdown --folder "${{ github.event.inputs.gdrive_url }}" -O obrazy_png/
-
-      - name: Uruchomienie skryptu Pythona z pełnymi flagami wyboru
+      - name: Uruchomienie skryptu Pythona na plikach lokalnych z repozytorium
         run: |
           python main.py \
             --namespace "${{ github.event.inputs.namespace }}" \
@@ -71,8 +60,7 @@ jobs:
             --type "${{ github.event.inputs.typ_przedmiotu }}" \
             --lod "${{ github.event.inputs.dystans_lod }}"
 
-      # 💥 POPRAWIONA ŚCIEŻKA: GitHub pobiera teraz gotowy folder GEN (zawierający paczki, komendy i gui.yml)
-      - name: Zapisanie gotowych paczek w chmurze GitHuba (Artifact)
+      - name: Zapisanie gotowych paczek oraz gui.yml (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.nazwa_paczki }}
