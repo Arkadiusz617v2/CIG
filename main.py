@@ -2,10 +2,9 @@ import os
 import secrets
 import argparse
 import shutil
-import urllib.request
-import re
+import base64
 import json
-import time  # Potrzebne do odczekania przed ponowną próbą
+import uuid
 
 from bedrock_compilator import BedrockCompilator
 from java_compilator import JavaCompilator
@@ -15,66 +14,9 @@ def generuj_losowy_hash(dlugosc=12):
     znaki = "abcdefghijklmnopqrstuvwxyz0123456789"
     return "".join(secrets.choice(znaki) for _ in range(dlugosc))
 
-def wyciagnij_folder_id(url):
-    match = re.search(r"folders/([a-zA-Z0-9-_]+)", url)
-    return match.group(1) if match else url
-
-def skanuj_i_pobierz_z_gdrive(folder_url, docelowy_folder):
-    folder_id = wyciagnij_folder_id(folder_url)
-    print(f"🔍 [Google Drive] Skanowanie folderu o ID: {folder_id}...")
-    
-    # Próba wczytania danych z Google Drive (3 próby w razie błędu sieci)
-    html = ""
-    for proba in range(1, 4):
-        try:
-            direct_url = f"https://google.com{folder_id}"
-            req = urllib.request.Request(direct_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                html = response.read().decode('utf-8')
-                break # Jeśli się udało, przerywamy pętlę prób
-        except Exception as e:
-            print(f"⚠️ [Próba {proba}/3] Chwilowy błąd sieci: {e}. Ponawiam za 3 sekundy...")
-            if proba == 3:
-                print(f"❌ Nie udalo sie przeskanować dysku po 3 próbach: {e}")
-                return False
-            time.sleep(3)
-
-    pliki_do_pobrania = []
-    # Wyciąganie par [ID, Nazwa] z kodu źródłowego strony Google Drive przy użyciu ulepszonego wyrażenia regularnego
-    matches = re.findall(r'\["([a-zA-Z0-9-_]{25,})",\["([^"]+\.png)"', html)
-    for fid, fname in matches:
-        if {'id': fid, 'name': fname} not in pliki_do_pobrania:
-            pliki_do_pobrania.append({'id': fid, 'name': fname})
-
-    if not pliki_do_pobrania:
-        print("❌ Brak plików .png w tym folderze lub folder nie jest publiczny (Ustaw: 'Każdy mający link').")
-        return False
-
-    print(f"🟩 Wykryto {len(pliki_do_pobrania)} plików .png w chmurze. Rozpoczynam pobieranie...")
-    
-    for plik in pliki_do_pobrania:
-        fid = plik['id']
-        fname = plik['name']
-        if not fname.endswith(".png"): fname += ".png"
-        
-        url_pobierania = f"https://google.com{fid}"
-        
-        # Pobieranie pojedynczego pliku również zabezpieczamy potrójną próbą
-        for proba_pliku in range(1, 4):
-            try:
-                urllib.request.urlretrieve(url_pobierania, os.path.join(docelowy_folder, fname))
-                print(f"  » Pobrano pomyślnie: {fname}")
-                break
-            except Exception as e:
-                if proba_pliku == 3:
-                    print(f"  » ❌ Błąd pobierania pliku {fname}: {e}")
-                time.sleep(1)
-                
-    return True
-
 def main():
     print("====================================================")
-    print("   🎛️ SYSTEM AUTOMATYZACJI I SPÓJNOŚCI GEYSER/JAVA ")
+    print("   🎛️ SYSTEM DEKODOWANIA I SPÓJNOŚCI GEYSER/JAVA   ")
     print("====================================================\n")
 
     parser = argparse.ArgumentParser()
@@ -82,7 +24,8 @@ def main():
     parser.add_argument("-b", "--base", default="red_dye")
     parser.add_argument("-p", "--packname", default="Custom Items Pack")
     parser.add_argument("-o", "--description", default="Zbudowane za pomoca generatora")
-    parser.add_argument("--gdrive_url", default="")
+    parser.add_argument("--pliki_nazwy", default="")
+    parser.add_argument("--pliki_tekstury", default="")
     args = parser.parse_args()
 
     folder_source = "obrazy_png"
@@ -97,21 +40,45 @@ def main():
     shutil.rmtree(folder_projektu, ignore_errors=True)
     os.makedirs(folder_projektu, exist_ok=True)
 
-    if not args.gdrive_url:
-        print("❌ Blad: Brak linku do Google Drive!")
+    if not args.pliki_nazwy or not args.pliki_tekstury:
+        print("❌ Blad: Brak nazw przedmiotów lub kodów tekstur w formularzu!")
         return
 
-    if not skanuj_i_pobierz_z_gdrive(args.gdrive_url, folder_source):
+    # Rozdzielanie masowych list wpisanych przez użytkownika
+    nazwy_list = [n.strip() for n in args.pliki_nazwy.split(",") if n.strip()]
+    kody_list = [k.strip() for k in args.pliki_tekstury.split(",") if k.strip()]
+
+    if len(nazwy_list) != len(kody_list):
+        print("❌ Blad: Liczba nazw przedmiotów nie zgadza sie z liczba wklejonych kodów tekstur!")
         return
+
+    # 🟩 DEKODOWANIE TEKSTU I GENEROWANIE PLIKÓW PNG W LOCIE
+    print("🎨 Wbudowany generator: Tworzenie plików .png z podanych kodów...")
+    for nazwa, kod_b64 in zip(nazwy_list, kody_list):
+        if not nazwa.endswith(".png"):
+            nazwa += ".png"
+            
+        # Oczyszczanie kodu Base64 w razie wklejenia pełnego formatu URL (data:image/png;base64,...)
+        if "base64," in kod_b64:
+            kod_b64 = kod_b64.split("base64,")[1]
+            
+        sciezka_pliku = os.path.join(folder_source, nazwa)
+        try:
+            with open(sciezka_pliku, "wb") as fh:
+                fh.write(base64.b64decode(kod_b64))
+            print(f"  ✔️ Wygenerowano plik graficzny: {nazwa}")
+        except Exception as e:
+            print(f"  ❌ Blad generowania pliku {nazwa}: {e}")
 
     pliki_png = [f for f in os.listdir(folder_source) if f.endswith('.png')]
     if not pliki_png:
-        print("❌ Blad: Brak tekstur do kompilacji.")
+        print("❌ Blad: Nie udalo sie wygenerować zadnej tekstury z podanych danych!")
         return
 
     token_zabezpieczajacy = generuj_losowy_hash()
-    print(f"🔒 Klucz ochrony (Obfuscation): {token_zabezpieczajacy}")
+    print(f"\n🔒 Klucz ochrony (Obfuscation): {token_zabezpieczajacy}")
 
+    # Uruchomienie zsynchronizowanych kompilatorów
     bedrock_runner = BedrockCompilator(folder_projektu)
     bedrock_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_png)
 
@@ -139,7 +106,7 @@ def main():
             f"    display_name: '&aCustom {nazwa_czysta.capitalize()}'\n"
             f"    lore:\n"
             f"      - '&7Wygenerowano automatycznie przez'\n"
-            f"      - '&7Generator 1.21.4+'"
+            f"      - '&7Wbudowany Generator 1.21.4+'"
         )
         aktualny_slot += 1
 
@@ -147,8 +114,9 @@ def main():
         f.write("=== WYGENEROWANE KOMENDY (Minecraft 1.21.4+) ===\n\n" + "\n\n".join(komendy))
 
     with open(os.path.join(folder_projektu, "deluxmenus_item_gui.yml"), "w", encoding="utf-8") as f:
-        f.write("menu_title: '&8Moje Customowe Przedmioty'\nopen_command: custommenu\nsize: 54\n\nitems:\n" + "\n".join(gui_items_yml))
+        f.write("# ====================================================\n# 🚀 GOTOWA KONFIGURACJA GEYSER/JAVA POD DELUXEMENUS\n# ====================================================\n\nmenu_title: '&8Moje Customowe Przedmioty'\nopen_command: custommenu\nsize: 54\n\nitems:\n" + "\n".join(gui_items_yml))
 
+    # Pakowanie paczek do czystych archiwów .zip i czyszczenie logów
     path_java_tmp = os.path.join(folder_projektu, f"java_{nazwa_bezpieczna}_temp")
     path_bedrock_tmp = os.path.join(folder_projektu, "bedrock_temp")
     
