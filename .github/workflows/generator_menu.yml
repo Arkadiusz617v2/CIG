@@ -3,20 +3,23 @@ name: 🚀 Uruchom Generator (Menu)
 on:
   workflow_dispatch:
     inputs:
+      gdrive_url:
+        description: '1. Wklej LINK do Twojego folderu Google Drive z plikami .png (Folder musi mieć dostęp: Każdy mający link!)'
+        required: true
       namespace:
-        description: '1. Podaj NAMESPACE dla modeli (np. gui, custom)'
+        description: '2. Podaj NAMESPACE dla modeli (np. gui, custom)'
         required: true
         default: 'gui'
       nazwa_paczki:
-        description: '2. Podaj NAZWĘ dla paczki zasobów'
+        description: '3. Podaj NAZWĘ dla paczki zasobów'
         required: true
         default: 'Custom Items Pack'
       opis_paczki:
-        description: '3. Podaj OPIS dla paczki'
+        description: '4. Podaj OPIS dla paczki'
         required: true
-        default: 'Wygenerowane przez GitHub Actions'
+        default: 'Wygenerowane przez Multi-Add'
       przedmiot_bazowy:
-        description: '4. Wybierz przedmiot bazowy z Javy (Vanilla)'
+        description: '5. Wybierz przedmiot bazowy z Javy (Vanilla)'
         required: true
         default: 'red_dye'
         type: choice
@@ -25,20 +28,11 @@ on:
           - grey_stained_glass
           - iron_nugget
           - paper
-      typ_przedmiotu:
-        description: '5. Wybierz typ przedmiotów w tej sesji'
-        required: true
-        default: '1'
-        type: choice
-        options:
-          - '1' # Płaski przedmiot (2D)
-          - '2' # Model przestrzenny (3D z LOD)
-      dystans_lod:
-        description: '6. Dystans optymalizacji LOD dla trybu 3D (w blokach)'
-        required: true
-        default: '32'
+          - gold_ingot
+          - iron_ingot
+          - copper_ingot
+          - coal
 
-# 🔓 ODBLOKOWANIE UPRAWNIEŃ ZAPISU DLA BOTA GITHUBA (Naprawia błąd 403)
 permissions:
   contents: write
 
@@ -46,7 +40,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Pobieranie kodu i plików graficznych z repozytorium
+      - name: Pobieranie kodu z repozytorium
         uses: actions/checkout@v4
 
       - name: Instalacja Pythona
@@ -54,24 +48,19 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Uruchomienie skryptu Pythona na plikach lokalnych z repozytorium
+      - name: Uruchomienie Silnika Skanowania i Kompilacji Multi-Add
         run: |
           python main.py \
             --namespace "${{ github.event.inputs.namespace }}" \
             --packname "${{ github.event.inputs.nazwa_paczki }}" \
             --description "${{ github.event.inputs.opis_paczki }}" \
             --base "${{ github.event.inputs.przedmiot_bazowy }}" \
-            --type "${{ github.event.inputs.typ_przedmiotu }}" \
-            --lod "${{ github.event.inputs.dystans_lod }}"
+            --gdrive_url "${{ github.event.inputs.gdrive_url }}"
 
-      # 🟢 AUTOMATYCZNY ZAPIS Z ODŚWIEŻENIEM DYSKU I UPRAWNIENIAMI TOKENU
       - name: Automatyczny zapis folderu GEN do projektu (Commit & Push)
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # Wymuszamy rejestrację folderu GEN, ignorując pamięć podręczną Pythona
-          git add GEN/ || echo "Folder GEN jeszcze nie istnieje lub jest pusty"
-          
-          git commit -m "🚀 Wygenerowano nowy pakiet struktur w folderze GEN" || echo "Brak zmian do zapisu"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          git add GEN/ || echo "Brak folderu"
+          git commit -m "🚀 Wygenerowano masowy pakiet struktur w folderze GEN" || echo "Brak zmian"
           git push origin main
