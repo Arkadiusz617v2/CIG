@@ -2,9 +2,8 @@ import os
 import secrets
 import argparse
 import shutil
-import base64
-import json
-import uuid
+import urllib.request
+import re
 
 from bedrock_compilator import BedrockCompilator
 from java_compilator import JavaCompilator
@@ -14,9 +13,48 @@ def generuj_losowy_hash(dlugosc=12):
     znaki = "abcdefghijklmnopqrstuvwxyz0123456789"
     return "".join(secrets.choice(znaki) for _ in range(dlugosc))
 
+def pobierz_z_catbox_multi_format(catbox_url, docelowy_folder):
+    match = re.search(r"\/c\/([a-zA-Z0-9]+)", catbox_url)
+    album_id = match.group(1) if match else catbox_url
+    
+    url_txt = f"https://catbox.moe{album_id}"
+    print(f"🔍 [Catbox Engine] Wczytywanie albumu o ID: {album_id}...")
+    
+    try:
+        req = urllib.request.Request(url_txt, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            html = response.read().decode('utf-8')
+            
+            # 🟢 POPRAWIONE WYRAŻENIE: Wyciąga z kodu Catbox zarówno pliki .png, jak i .webp!
+            linki_plikow = re.findall(r'href="https://files\.catbox\.moe/([a-zA-Z0-9\.]+\.(?:png|webp))"', html)
+            
+            if not linki_plikow:
+                print("❌ Błąd: Album Catbox jest pusty lub nie zawiera obsługiwanych plików (.png / .webp)!")
+                return False
+                
+            print(f"🟩 Wykryto {len(linki_plikow)} kompatybilnych plików w chmurze. Pobieranie masowe...")
+            
+            for index, nazwa_pliku_zdalna in enumerate(linki_plikow):
+                url_bezposredni = f"https://catbox.moe{nazwa_pliku_zdalna}"
+                rozszerzenie = os.path.splitext(nazwa_pliku_zdalna)[1].lower()
+                
+                # Zabezpieczamy nazwy przedmiotów w strukturze Minecrafta
+                nazwa_lokalna_czysta = f"custom_item_{index+1}"
+                sciezka_zapisu = os.path.join(docelowy_folder, f"{nazwa_lokalna_czysta}{rozszerzenie}")
+                
+                # Pobieramy pliki binarne na serwer Actions bez żadnego oporu ze strony Catbox
+                urllib.request.urlretrieve(url_bezposredni, sciezka_zapisu)
+                print(f"  » Pobrano pomyślnie z chmury: {nazwa_lokalna_czysta}{rozszerzenie}")
+                
+            return True
+            
+    except Exception as e:
+        print(f"❌ Serwery Catbox nie odpowiedziały na zapytanie bota Actions: {e}")
+        return False
+
 def main():
     print("====================================================")
-    print("   🎛️ SYSTEM DEKODOWANIA I SPÓJNOŚCI GEYSER/JAVA   ")
+    print("   🎛️ SYSTEM MULTI-FORMAT CATBOX AUTOMAT (1.21.4+)   ")
     print("====================================================\n")
 
     parser = argparse.ArgumentParser()
@@ -24,8 +62,7 @@ def main():
     parser.add_argument("-b", "--base", default="red_dye")
     parser.add_argument("-p", "--packname", default="Custom Items Pack")
     parser.add_argument("-o", "--description", default="Zbudowane za pomoca generatora")
-    parser.add_argument("--pliki_nazwy", default="")
-    parser.add_argument("--pliki_tekstury", default="")
+    parser.add_argument("--catbox_url", default="")
     args = parser.parse_args()
 
     folder_source = "obrazy_png"
@@ -40,59 +77,33 @@ def main():
     shutil.rmtree(folder_projektu, ignore_errors=True)
     os.makedirs(folder_projektu, exist_ok=True)
 
-    if not args.pliki_nazwy or not args.pliki_tekstury:
-        print("❌ Blad: Brak nazw przedmiotów lub kodów tekstur w formularzu!")
+    if not args.catbox_url:
+        print("❌ Blad: Brak podanego linku do albumu Catbox!")
         return
 
-    # Rozdzielanie masowych list wpisanych przez użytkownika
-    nazwy_list = [n.strip() for n in args.pliki_nazwy.split(",") if n.strip()]
-    kody_list = [k.strip() for k in args.pliki_tekstury.split(",") if k.strip()]
-
-    if len(nazwy_list) != len(kody_list):
-        print("❌ Blad: Liczba nazw przedmiotów nie zgadza sie z liczba wklejonych kodów tekstur!")
+    # Uruchomienie zoptymalizowanego skanera dwuformatowego (PNG + WebP)
+    if not pobierz_z_catbox_multi_format(args.catbox_url, folder_source):
         return
 
-    # 🟩 DEKODOWANIE TEKSTU I GENEROWANIE PLIKÓW PNG W LOCIE
-    print("🎨 Wbudowany generator: Tworzenie plików .png z podanych kodów...")
-    for nazwa, kod_b64 in zip(nazwy_list, kody_list):
-        if not nazwa.endswith(".png"):
-            nazwa += ".png"
-            
-        # Oczyszczanie kodu Base64 w razie wklejenia pełnego formatu URL (data:image/png;base64,...)
-        if "base64," in kod_b64:
-            kod_b64 = kod_b64.split("base64,")[1]
-            
-        sciezka_pliku = os.path.join(folder_source, nazwa)
-        try:
-            with open(sciezka_pliku, "wb") as fh:
-                fh.write(base64.b64decode(kod_b64))
-            print(f"  ✔️ Wygenerowano plik graficzny: {nazwa}")
-        except Exception as e:
-            print(f"  ❌ Blad generowania pliku {nazwa}: {e}")
-
-    pliki_png = [f for f in os.listdir(folder_source) if f.endswith('.png')]
-    if not pliki_png:
-        print("❌ Blad: Nie udalo sie wygenerować zadnej tekstury z podanych danych!")
-        return
-
+    # Skanujemy wczytane pliki (na razie traktujemy rozszerzenie elastycznie, dopóki nie wgramy Pillow)
+    pliki_sesji = [f for f in os.listdir(folder_source) if f.endswith('.png') or f.endswith('.webp')]
     token_zabezpieczajacy = generuj_losowy_hash()
-    print(f"\n🔒 Klucz ochrony (Obfuscation): {token_zabezpieczajacy}")
+    print(f"🔒 Klucz ochrony tekstur (Obfuscation): {token_zabezpieczajacy}")
 
-    # Uruchomienie zsynchronizowanych kompilatorów
     bedrock_runner = BedrockCompilator(folder_projektu)
-    bedrock_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_png)
+    bedrock_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_sesji)
 
     java_runner = JavaCompilator(folder_projektu)
-    java_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_png, args.namespace, args.base)
+    java_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_sesji, args.namespace, args.base)
 
     geyser_runner = GeyserCompilator(folder_projektu)
-    geyser_runner.kompiluj(token_zabezpieczajacy, pliki_png, args.namespace, args.base)
+    geyser_runner.kompiluj(token_zabezpieczajacy, pliki_sesji, args.namespace, args.base)
 
     komendy = []
     gui_items_yml = []
     aktualny_slot = 10
 
-    for plik in pliki_png:
+    for plik in pliki_sesji:
         nazwa_czysta = os.path.splitext(plik)[0]
         string_modelu = f"{args.namespace}:{token_zabezpieczajacy}_{nazwa_czysta}"
         
@@ -106,7 +117,7 @@ def main():
             f"    display_name: '&aCustom {nazwa_czysta.capitalize()}'\n"
             f"    lore:\n"
             f"      - '&7Wygenerowano automatycznie przez'\n"
-            f"      - '&7Wbudowany Generator 1.21.4+'"
+            f"      - '&7Multi-Format Generator 1.21.4+'"
         )
         aktualny_slot += 1
 
@@ -116,7 +127,6 @@ def main():
     with open(os.path.join(folder_projektu, "deluxmenus_item_gui.yml"), "w", encoding="utf-8") as f:
         f.write("# ====================================================\n# 🚀 GOTOWA KONFIGURACJA GEYSER/JAVA POD DELUXEMENUS\n# ====================================================\n\nmenu_title: '&8Moje Customowe Przedmioty'\nopen_command: custommenu\nsize: 54\n\nitems:\n" + "\n".join(gui_items_yml))
 
-    # Pakowanie paczek do czystych archiwów .zip i czyszczenie logów
     path_java_tmp = os.path.join(folder_projektu, f"java_{nazwa_bezpieczna}_temp")
     path_bedrock_tmp = os.path.join(folder_projektu, "bedrock_temp")
     
