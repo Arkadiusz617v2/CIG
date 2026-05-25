@@ -1,6 +1,6 @@
 # CIG
 
-# Custom Item Generator for Minecraft 1.21.4
+# Custom Item Generator for Minecraft 1.21.4+
 
 Narzędzie przeznaczone do generowania niestandardowych przedmiotów w grze Minecraft w wersji 1.21.4. Projekt umożliwia tworzenie unikalnych elementów z zachowaniem pełnej kompatybilności z najpopularniejszymi platformami serwerowymi oraz silnikami modyfikacji.
 
@@ -20,6 +20,8 @@ Generator zapewnia wsparcie dla następujących środowisk:
 * Magma
 * Neoforge
 * Quilt
+
+TEN PROJEKT JEST W VER 0.2-alpha JESZCZE NIE SKONICZONY
 
 ## Licencja / License
 
