@@ -5,6 +5,7 @@ import shutil
 import urllib.request
 import re
 import json
+import time  # Potrzebne do odczekania przed ponowną próbą
 
 from bedrock_compilator import BedrockCompilator
 from java_compilator import JavaCompilator
@@ -21,43 +22,54 @@ def wyciagnij_folder_id(url):
 def skanuj_i_pobierz_z_gdrive(folder_url, docelowy_folder):
     folder_id = wyciagnij_folder_id(folder_url)
     print(f"🔍 [Google Drive] Skanowanie folderu o ID: {folder_id}...")
-    scrapper_url = f"https://google.com{folder_id}?maxResults=100"
-    pliki_do_pobrania = []
-    try:
-        req = urllib.request.Request(scrapper_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            if 'items' in data:
-                for item in data['items']:
-                    if item.get('mimeType') == 'image/png':
-                        pliki_do_pobrania.append({'id': item['id'], 'name': item['name']})
-    except Exception:
+    
+    # Próba wczytania danych z Google Drive (3 próby w razie błędu sieci)
+    html = ""
+    for proba in range(1, 4):
         try:
             direct_url = f"https://google.com{folder_id}"
-            req = urllib.request.Request(direct_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req) as response:
-                html = response.read().decode()
-                matches = re.findall(r'\["([a-zA-Z0-9-_]{25,})",\["([^"]+\.png)"', html)
-                for fid, fname in matches:
-                    if {'id': fid, 'name': fname} not in pliki_do_pobrania:
-                        pliki_do_pobrania.append({'id': fid, 'name': fname})
-        except Exception as err:
-            print(f"❌ Nie udalo sie przeskanować dysku: {err}")
-            return False
+            req = urllib.request.Request(direct_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                html = response.read().decode('utf-8')
+                break # Jeśli się udało, przerywamy pętlę prób
+        except Exception as e:
+            print(f"⚠️ [Próba {proba}/3] Chwilowy błąd sieci: {e}. Ponawiam za 3 sekundy...")
+            if proba == 3:
+                print(f"❌ Nie udalo sie przeskanować dysku po 3 próbach: {e}")
+                return False
+            time.sleep(3)
+
+    pliki_do_pobrania = []
+    # Wyciąganie par [ID, Nazwa] z kodu źródłowego strony Google Drive przy użyciu ulepszonego wyrażenia regularnego
+    matches = re.findall(r'\["([a-zA-Z0-9-_]{25,})",\["([^"]+\.png)"', html)
+    for fid, fname in matches:
+        if {'id': fid, 'name': fname} not in pliki_do_pobrania:
+            pliki_do_pobrania.append({'id': fid, 'name': fname})
 
     if not pliki_do_pobrania:
-        print("❌ Brak plików .png w tym folderze.")
+        print("❌ Brak plików .png w tym folderze lub folder nie jest publiczny (Ustaw: 'Każdy mający link').")
         return False
 
+    print(f"🟩 Wykryto {len(pliki_do_pobrania)} plików .png w chmurze. Rozpoczynam pobieranie...")
+    
     for plik in pliki_do_pobrania:
         fid = plik['id']
         fname = plik['name']
         if not fname.endswith(".png"): fname += ".png"
+        
         url_pobierania = f"https://google.com{fid}"
-        try:
-            urllib.request.urlretrieve(url_pobierania, os.path.join(docelowy_folder, fname))
-        except Exception:
-            pass
+        
+        # Pobieranie pojedynczego pliku również zabezpieczamy potrójną próbą
+        for proba_pliku in range(1, 4):
+            try:
+                urllib.request.urlretrieve(url_pobierania, os.path.join(docelowy_folder, fname))
+                print(f"  » Pobrano pomyślnie: {fname}")
+                break
+            except Exception as e:
+                if proba_pliku == 3:
+                    print(f"  » ❌ Błąd pobierania pliku {fname}: {e}")
+                time.sleep(1)
+                
     return True
 
 def main():
@@ -81,10 +93,7 @@ def main():
     shutil.rmtree(folder_source, ignore_errors=True)
     os.makedirs(folder_source, exist_ok=True)
     
-    # 💥 NAPRAWA: Nie kasujemy calego GEN/ na starcie! Tworzymy go, jesli nie istnieje.
     os.makedirs(folder_final_gen, exist_ok=True)
-    
-    # Czyszczona jest wylacznie sesja tej jednej konkretnej paczki, bez niszczenia reszty danych
     shutil.rmtree(folder_projektu, ignore_errors=True)
     os.makedirs(folder_projektu, exist_ok=True)
 
