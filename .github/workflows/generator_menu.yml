@@ -1,25 +1,29 @@
-name: 🚀 Uruchom Generator (Menu)
+name: 🚀 Uruchom Zaawansowany Generator (Wbudowane PNG)
 
 on:
   workflow_dispatch:
     inputs:
-      gdrive_url:
-        description: '1. Wklej LINK do Twojego folderu Google Drive z plikami .png (Folder musi mieć dostęp: Każdy mający link!)'
+      pliki_nazwy:
+        description: '1. Podaj NAZWY dla przedmiotów oddzielone przecinkami (np. miecz, tarcza, helms)'
+        required: true
+        default: 'miecz, tarcza'
+      pliki_tekstury:
+        description: '2. Wklej KODY TEKSTUR Base64 oddzielone przecinkami (w tej samej kolejności co nazwy!)'
         required: true
       namespace:
-        description: '2. Podaj NAMESPACE dla modeli (np. gui, custom)'
+        description: '3. Podaj NAMESPACE dla modeli'
         required: true
         default: 'gui'
       nazwa_paczki:
-        description: '3. Podaj NAZWĘ dla paczki zasobów'
+        description: '4. Podaj NAZWĘ dla paczki zasobów'
         required: true
         default: 'Custom Items Pack'
       opis_paczki:
-        description: '4. Podaj OPIS dla paczki'
+        description: '5. Podaj OPIS dla paczki (mcmeta / manifest)'
         required: true
-        default: 'Wygenerowane przez Multi-Add'
+        default: 'Wygenerowane automatycznie przez Generator'
       przedmiot_bazowy:
-        description: '5. Wybierz przedmiot bazowy z Javy (Vanilla)'
+        description: '6. Wybierz przedmiot bazowy z Javy (Vanilla)'
         required: true
         default: 'red_dye'
         type: choice
@@ -28,10 +32,6 @@ on:
           - grey_stained_glass
           - iron_nugget
           - paper
-          - gold_ingot
-          - iron_ingot
-          - copper_ingot
-          - coal
 
 permissions:
   contents: write
@@ -48,19 +48,20 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Uruchomienie Silnika Skanowania i Kompilacji Multi-Add
+      - name: Uruchomienie Silnika Dekodowania i Kompilacji Paczek
         run: |
           python main.py \
             --namespace "${{ github.event.inputs.namespace }}" \
             --packname "${{ github.event.inputs.nazwa_paczki }}" \
             --description "${{ github.event.inputs.opis_paczki }}" \
             --base "${{ github.event.inputs.przedmiot_bazowy }}" \
-            --gdrive_url "${{ github.event.inputs.gdrive_url }}"
+            --pliki_nazwy "${{ github.event.inputs.pliki_nazwy }}" \
+            --pliki_tekstury "${{ github.event.inputs.pliki_tekstury }}"
 
       - name: Automatyczny zapis folderu GEN do projektu (Commit & Push)
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@://github.com"
-          git add GEN/ || echo "Brak folderu"
+          git add GEN/ || echo "Brak folderu GEN"
           git commit -m "🚀 Wygenerowano masowy pakiet struktur w folderze GEN" || echo "Brak zmian"
           git push origin main
