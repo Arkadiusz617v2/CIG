@@ -1,4 +1,0 @@
-=== WYGENEROWANE KOMENDY DLA TEJ SESJI (Minecraft 1.21.4+) ===
-
-🔹 gui:
-/give @s red_dye[item_model="gui:x5dag7r8jh1i/gui"]
