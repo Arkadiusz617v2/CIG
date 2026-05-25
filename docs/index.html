@@ -3,80 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Generator - Konwerter Tekstur</title>
+    <title>Minecraft Generator - Panel Drag & Drop</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #1a252f; color: #ecf0f1; text-align: center; padding: 40px; }
-        .drop-zone { border: 3px dashed #7f8c8d; max-width: 500px; margin: 20px auto; padding: 40px; border-radius: 8px; cursor: pointer; background-color: #2c3e50; transition: border-color 0.2s; }
-        .drop-zone.dragover { border-color: #2ecc71; background-color: #34495e; }
-        textarea { width: 100%; max-width: 500px; height: 150px; background-color: #1a252f; color: #2ecc71; border: 1px solid #7f8c8d; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 12px; margin-top: 20px; box-sizing: border-box; }
-        .btn { padding: 10px 20px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #1a252f; color: #ecf0f1; text-align: center; padding: 40px; margin: 0; }
+        .container { max-width: 550px; margin: 0 auto; background-color: #2c3e50; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h2 { color: #2ecc71; margin-top: 0; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        input[type="text"] { width: 100%; padding: 10px; border-radius: 4px; border: none; background-color: #34495e; color: white; box-sizing: border-box; font-size: 14px; }
+        .drop-zone { border: 3px dashed #7f8c8d; padding: 40px; text-align: center; color: #bdc3c7; border-radius: 6px; background-color: #1a252f; cursor: pointer; margin-top: 20px; font-weight: bold; }
+        .drop-zone.dragover { border-color: #2ecc71; color: white; background-color: #2c3e50; }
+        .btn { width: 100%; padding: 12px; background-color: #2ecc71; color: white; border: none; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 20px; display: none; }
         .btn:hover { background-color: #27ae60; }
+        #status { margin-top: 15px; font-size: 14px; font-weight: bold; color: #f1c40f; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 Konwerter Tekstur do Base64 (Offline)</h2>
-    <p>Przeciągnij plik graficzny, aby wygenerować kod dla generatora.</p>
+<div class="container">
+    <h2>🚀 Minecraft Panel Przeciągania Tekstur</h2>
+    <p style="color: #bdc3c7; font-size: 14px;">Wgraj grafikę .png bezpośrednio do folderu w projekcie</p>
 
-    <!-- 🟢 OKNO DRAG & DROP -->
-    <div class="drop-zone" id="drop-zone">
-        📂 Przeciągnij i upuść plik .png lub .webp tutaj<br>lub kliknij, aby wybrać z dysku
-        <input type="file" id="file-input" accept=".png,.webp" style="display: none;">
+    <div class="form-group">
+        <label>Nazwa dla Twojego przedmiotu (np. miecz_rpg, pasek_gui):</label>
+        <input type="text" id="item-name" placeholder="Wpisz nazwę (bez .png)">
     </div>
 
-    <!-- OKNO Z WYGENEROWANYM KODEM TEKSTOWYCH -->
-    <textarea id="output-text" readonly placeholder="Tutaj pojawi się Twój kod Base64 po upuszczeniu pliku..."></textarea>
-    <br>
-    <button class="btn" id="btn-copy">KOPIUJ KOD</button>
+    <!-- Okno Drag & Drop -->
+    <div class="drop-zone" id="drop-zone">
+        📂 Przeciągnij i upuść plik .png tutaj<br>lub kliknij, aby wybrać z dysku
+    </div>
+    <input type="file" id="file-input" accept=".png" style="display: none;">
 
-    <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const outputText = document.getElementById('output-text');
-        const btnCopy = document.getElementById('btn-copy');
+    <div id="status">Czekam na plik graficzny...</div>
+    <button class="btn" id="btn-upload">🔥 WYŚLIJ PLIK DO REPOZYTORIUM</button>
+</div>
 
-        dropZone.addEventListener('click', () => fileInput.click());
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
+<script>
+    const GITHUB_USER = "Arkadiusz617v2"; 
+    const GITHUB_REPO = "CIG";           
+    const GITHUB_TOKEN = "TWÓJ_TOKEN_GITHUB_PAT"; // Twój tajny token PAT z uprawnieniami zapisu [1.1]
 
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const btnUpload = document.getElementById('btn-upload');
+    const statusDiv = document.getElementById('status');
+    const itemNameInput = document.getElementById('item-name');
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                przetworzPlik(e.dataTransfer.files[0]);
-            }
-        });
+    let wybranyPlik = null;
 
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                przetworzPlik(e.target.files[0]);
-            }
-        });
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) { wczytajPlik(e.dataTransfer.files); }
+    });
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) { wczytajPlik(e.target.files); }
+    });
 
-        // ⚙️ LOGIKA OFFLINE: Zamiana obrazka na kod Base64 w ułamku sekundy
-        function przetworzPlik(file) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                // Wyciągamy czysty kod tekstowy (usuwamy nagłówek data:image/...)
-                const pelny_kod = event.target.result;
-                const czysty_base64 = pelny_kod.split(',')[1];
-                outputText.value = czysty_base64;
-                outputText.select();
-            };
-            reader.readAsDataURL(file);
+    function wczytajPlik(file) {
+        if (!file.name.toLowerCase().endsWith('.png')) {
+            alert("❌ Możesz wgrywać wyłącznie pliki w formacie .png!");
+            return;
         }
+        wybranyPlik = file;
+        dropZone.innerHTML = `🎵 Wczytano plik: <br><span style="color:#2ecc71;">${file.name}</span>`;
+        statusDiv.innerText = "Plik gotowy do wysłania.";
+        statusDiv.style.color = "#2ecc71";
+        btnUpload.style.display = "block";
+        
+        if(!itemNameInput.value.trim()) {
+            itemNameInput.value = file.name.replace(".png", "").replace(".PNG", "");
+        }
+    }
 
-        // Kopiowanie do schowka komputera
-        btnCopy.addEventListener('click', () => {
-            outputText.select();
-            document.execCommand('copy');
-            alert('✔️ Kod Base64 został skopiowany do schowka!');
-        });
-    </script>
+    btnUpload.addEventListener('click', () => {
+        const nazwaPrzedmiotu = itemNameInput.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+        if (!nazwaPrzedmiotu) { alert("❌ Podaj poprawną nazwę!"); return; }
+        if (!wybranyPlik) return;
+
+        statusDiv.innerText = "⏳ Przesyłanie grafiki do Twojego folderu na GitHubie...";
+        statusDiv.style.color = "#f1c40f";
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const arrayBuffer = e.target.result;
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+            
+            // Konwersja sieciowa wymagana przez API GitHuba (Użytkownik tego nie widzi) [1.1]
+            const dane_binarne = btoa(binary); 
+
+            const url_api = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/obrazy_png/${nazwaPrzedmiotu}.png`;
+
+            try {
+                const response = await fetch(url_api, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `token ${GITHUB_TOKEN}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: `🎨 Wgrano teksturę przedmiotu: ${nazwaPrzedmiotu} przez panel HTML`,
+                        content: dane_binarne
+                    })
+                });
+
+                if (response.status === 201 || response.status === 200) {
+                    statusDiv.innerHTML = "🎉 SUKCES! Plik został zapisany w folderze <span style='color:white;'>obrazy_png/</span>.<br>Możesz teraz przejść do GitHuba i wygenerować paczkę w Actions!";
+                    statusDiv.style.color = "#2ecc71";
+                } else {
+                    const errData = await response.json();
+                    statusDiv.innerText = "❌ Błąd zapisu: " + errData.message;
+                    statusDiv.style.color = "#e74c3c";
+                }
+            } catch (err) {
+                statusDiv.innerText = "❌ Brak połączenia z GitHub API: " + err;
+                statusDiv.style.color = "#e74c3c";
+            }
+        };
+        reader.readAsArrayBuffer(wybranyPlik);
+    });
+</script>
 </body>
 </html>
