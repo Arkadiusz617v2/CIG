@@ -6,7 +6,6 @@ import urllib.request
 import re
 import json
 
-# 🟢 OFICJALNE IMPORTY Z TWOICH OSOBNYCH PLIKÓW KOMPILATORÓW
 from bedrock_compilator import BedrockCompilator
 from java_compilator import JavaCompilator
 from geyser_compilator import GeyserCompilator
@@ -81,7 +80,12 @@ def main():
 
     shutil.rmtree(folder_source, ignore_errors=True)
     os.makedirs(folder_source, exist_ok=True)
-    shutil.rmtree(folder_final_gen, ignore_errors=True)
+    
+    # 💥 NAPRAWA: Nie kasujemy calego GEN/ na starcie! Tworzymy go, jesli nie istnieje.
+    os.makedirs(folder_final_gen, exist_ok=True)
+    
+    # Czyszczona jest wylacznie sesja tej jednej konkretnej paczki, bez niszczenia reszty danych
+    shutil.rmtree(folder_projektu, ignore_errors=True)
     os.makedirs(folder_projektu, exist_ok=True)
 
     if not args.gdrive_url:
@@ -99,7 +103,6 @@ def main():
     token_zabezpieczajacy = generuj_losowy_hash()
     print(f"🔒 Klucz ochrony (Obfuscation): {token_zabezpieczajacy}")
 
-    # 🚀 WYWOŁANIE OSOBNYCH KOMPILATORÓW (Czysto, bez podwójnych importów w środku kodu)
     bedrock_runner = BedrockCompilator(folder_projektu)
     bedrock_runner.kompiluj(args.packname, args.description, token_zabezpieczajacy, folder_source, pliki_png)
 
@@ -137,14 +140,13 @@ def main():
     with open(os.path.join(folder_projektu, "deluxmenus_item_gui.yml"), "w", encoding="utf-8") as f:
         f.write("menu_title: '&8Moje Customowe Przedmioty'\nopen_command: custommenu\nsize: 54\n\nitems:\n" + "\n".join(gui_items_yml))
 
-    # Pakowanie paczek do czystych archiwów .zip
     path_java_tmp = os.path.join(folder_projektu, f"java_{nazwa_bezpieczna}_temp")
     path_bedrock_tmp = os.path.join(folder_projektu, "bedrock_temp")
     
     shutil.move(os.path.join(folder_projektu, "java_compilator_folder"), path_java_tmp)
     shutil.move(os.path.join(folder_projektu, "bedrock_compilator_folder"), path_bedrock_tmp)
 
-    shutil.make_archive(os.path.join(folder_projektu, nazwa_bezpieczna), 'zip', path_java_tmp)
+    shutil.make_archive(os.path.join(folder_projektu, args.packname), 'zip', path_java_tmp)
     shutil.make_archive(os.path.join(folder_projektu, f"bedrock_{nazwa_bezpieczna}"), 'zip', path_bedrock_tmp)
 
     shutil.rmtree(path_java_tmp, ignore_errors=True)
