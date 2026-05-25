@@ -1,29 +1,25 @@
-name: 🚀 Uruchom Zaawansowany Generator (Wbudowane PNG)
+name: 🚀 Uruchom Generator (Menu Catbox)
 
 on:
   workflow_dispatch:
     inputs:
-      pliki_nazwy:
-        description: '1. Podaj NAZWY dla przedmiotów oddzielone przecinkami (np. miecz, tarcza, helms)'
-        required: true
-        default: 'miecz, tarcza'
-      pliki_tekstury:
-        description: '2. Wklej KODY TEKSTUR Base64 oddzielone przecinkami (w tej samej kolejności co nazwy!)'
+      catbox_url:
+        description: '1. Wklej LINK do swojego albumu Catbox (np. https://catbox.moe)'
         required: true
       namespace:
-        description: '3. Podaj NAMESPACE dla modeli'
+        description: '2. Podaj NAMESPACE dla modeli (np. gui, custom)'
         required: true
         default: 'gui'
       nazwa_paczki:
-        description: '4. Podaj NAZWĘ dla paczki zasobów'
+        description: '3. Podaj NAZWĘ dla paczki zasobów'
         required: true
         default: 'Custom Items Pack'
       opis_paczki:
-        description: '5. Podaj OPIS dla paczki (mcmeta / manifest)'
+        description: '4. Podaj OPIS dla paczki'
         required: true
-        default: 'Wygenerowane automatycznie przez Generator'
+        default: 'Wygenerowane przez Catbox Multi-Add'
       przedmiot_bazowy:
-        description: '6. Wybierz przedmiot bazowy z Javy (Vanilla)'
+        description: '5. Wybierz przedmiot bazowy z Javy (Vanilla)'
         required: true
         default: 'red_dye'
         type: choice
@@ -48,20 +44,19 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Uruchomienie Silnika Dekodowania i Kompilacji Paczek
+      - name: Uruchomienie stabilnego silnika kompilacji Catbox
         run: |
           python main.py \
             --namespace "${{ github.event.inputs.namespace }}" \
             --packname "${{ github.event.inputs.nazwa_paczki }}" \
             --description "${{ github.event.inputs.opis_paczki }}" \
             --base "${{ github.event.inputs.przedmiot_bazowy }}" \
-            --pliki_nazwy "${{ github.event.inputs.pliki_nazwy }}" \
-            --pliki_tekstury "${{ github.event.inputs.pliki_tekstury }}"
+            --catbox_url "${{ github.event.inputs.catbox_url }}"
 
       - name: Automatyczny zapis folderu GEN do projektu (Commit & Push)
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@://github.com"
-          git add GEN/ || echo "Brak folderu GEN"
+          git add GEN/ || echo "Brak folderu"
           git commit -m "🚀 Wygenerowano masowy pakiet struktur w folderze GEN" || echo "Brak zmian"
           git push origin main
